@@ -35,6 +35,9 @@ namespace server
 		String selectedFilePath = "";//选中的某一个文件的路径
 		String upLoadFilePath = "";//本地选中的需要上传的文件
 		String upLoadFileName = "";
+		String savePath = "";//本地下载需要存储的文件路径
+		String HintFilename = "";
+		String HintFilepath = "";
 
 		public FileManager(String Ip, Socket clientSocket, MainForm MF)
 		{
@@ -234,7 +237,12 @@ namespace server
 					}
 					break;
 				case "下载":
-					MessageBox.Show(e.ClickedItem.Text);
+					FolderBrowserDialog path = new FolderBrowserDialog();
+					path.ShowDialog();
+					this.savePath = path.SelectedPath;
+					//发送选中的文件全路径给被控制端
+					this.Ns.Write(Encoding.Default.GetBytes("$DownLoadFile||" + this.selectedFilePath), 0, Encoding.Default.GetBytes("$DownLoadFile||" + this.selectedFilePath).Length);
+					this.Ns.Flush();
 					break;
 				default:
 					break;
@@ -319,9 +327,7 @@ namespace server
 					{
 						if (buffer[0] == 2)//2为文件名字和长度
 						{
-							string fileNameWithLength = Encoding.UTF8.GetString(buffer, 1, firstReceived - 1);
-							savePath = fileNameWithLength.Split('-').First(); //文件保存的路径
-							fileLength = Convert.ToInt64(fileNameWithLength.Split('-').Last());//文件长度
+							string revFileLength = Encoding.UTF8.GetString(buffer, 1, firstReceived - 1);
 						}
 						if (buffer[0] == 1)//1为文件
 						{
@@ -341,7 +347,7 @@ namespace server
 										firstWrite = false;
 										continue;
 									}
-									received = Lis_fileSocket.Receive(buffer); //之后每次收到的文件字节数组 可以直接写入文件
+									received = fileSocket.Receive(buffer); //之后每次收到的文件字节数组 可以直接写入文件
 									fs.Write(buffer, 0, received);
 									fs.Flush();
 									receivedTotalFilelength += received;
@@ -351,15 +357,13 @@ namespace server
 
 							HintFilename = savePath.Substring(savePath.LastIndexOf("\\") + 1); //文件名 不带路径
 							HintFilepath = savePath.Substring(0, savePath.LastIndexOf("\\")); //文件路径 不带文件名
-							this.BeginInvoke(new myUI(this.MsgHint));
+							
 						}
 
 					}
 				}
 				catch (Exception ex)
 				{
-					this.listView1.Items.Add("系统异常消息:" + ex.Message);
-					break;
 				}
 			}
 		}

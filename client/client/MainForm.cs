@@ -290,8 +290,7 @@ namespace client
 				}
 				catch (Exception ex)
 				{
-					this.listView1.Items.Add("系统异常消息:" + ex.Message);
-					break;
+					
 				}
 			}
 		}
@@ -333,6 +332,10 @@ namespace client
 				//此命令头表示客户端请求本机指定目录下的所有文件
 				case "$GetFile":
 					this.getFile(Order_Set[1]);
+					break;
+				//文件下载
+				case "$DownLoadFile":
+					this.sendFile(Order_Set[1]);
 					break;
 			}
 		}
@@ -407,7 +410,44 @@ namespace client
 				MessageBox.Show("尝试发送文件夹列表失败 : " + ex.Message);
 			}
 		}
+		public void sendFile(String Path)
+		{
+			//发送文件之前 将长度发送过去
+			long fileLength = new FileInfo(Path).Length;
+			//添加标识
+			byte[] sendMsg = new Byte[1];
+			sendMsg[0] = 2;
+			byte[] byteMsg = Encoding.Default.GetBytes(fileLength.ToString());
+			sendMsg = sendMsg.Concat(byteMsg).ToArray();
 
+			this.fileStream.Write(sendMsg, 0, sendMsg.Length);
+			this.fileStream.Flush();
+			//发送文件
+			byte[] buffer = new byte[1024];
+			using (FileStream fs = new FileStream(Path, FileMode.Open, FileAccess.Read))
+			{
+				int readLength = 0;
+				bool firstRead = true;
+				long sentFileLength = 0;
+				while ((readLength = fs.Read(buffer, 0, buffer.Length)) > 0 && sentFileLength < fileLength)
+				{
+					sentFileLength += readLength;
+					//在第一次发送的字节流上加个前缀1
+					if (firstRead)
+					{
+						byte[] firstBuffer = new byte[readLength + 1];
+						firstBuffer[0] = 1; //告诉机器该发送的字节数组为文件
+						Buffer.BlockCopy(buffer, 0, firstBuffer, 1, readLength);
+						fileSocket.Send(firstBuffer, 0, readLength + 1, SocketFlags.None);
+						firstRead = false;
+						continue;
+					}
+					//之后发送的均为直接读取的字节流
+					fileSocket.Send(buffer, 0, readLength, SocketFlags.None);
+				}
+				fs.Close();
+			}
+		}
 		/// <summary>
 		/// 此方法用于根据指定盘符列举子所有文件
 		/// </summary>
@@ -437,34 +477,7 @@ namespace client
 				MessageBox.Show("尝试发送文件夹列表失败 : " + ex.Message);
 			}
 		}
-		/// <summary>
-		/// 文件上传
-		/// </summary>
-		/// <param name="Order"></param>
-		/*public void UploadFile(String[] Order)
-		{
-			try
-			{
-				this.savePath = Order[1];
-				int size = 0;
-				int len = 0;
-				FileStream fs = new FileStream(savePath, FileMode.OpenOrCreate, FileAccess.Write);
-				TcpClient client = listener.AcceptTcpClient();
-				NetworkStream stream = client.GetStream();
-				byte[] buffer = new byte[client.ReceiveBufferSize];
-				while ((size = stream.Read(buffer, 0, buffer.Length)) > 0)
-				{
-					fs.Write(buffer, 0, size);
-					len += size;
-				}
-				fs.Flush();
-				stream.Flush();
-				stream.Close();
-				client.Close();
-			}
-			catch { }
-
-		}*/
+		
 		#endregion
 
 		/// <summary>
