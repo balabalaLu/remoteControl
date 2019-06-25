@@ -1,0 +1,10 @@
+C:\Users\asus\Desktop\C#\server\server\bin\Debug\server.exe
+C:\Users\asus\Desktop\C#\server\server\bin\Debug\server.pdb
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.csprojResolveAssemblyReference.cache
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.MainForm.resources
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.Properties.Resources.resources
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.csproj.GenerateResource.cache
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.csproj.CoreCompileInputs.cache
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.exe
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.pdb
+C:\Users\asus\Desktop\C#\server\server\obj\Debug\server.FileManager.resources
