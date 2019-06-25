@@ -36,6 +36,7 @@
 			this.NodeRightMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
 			this.上传ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.下载ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+			this.label1 = new System.Windows.Forms.Label();
 			this.groupBox1.SuspendLayout();
 			this.groupBox2.SuspendLayout();
 			this.NodeRightMenu.SuspendLayout();
@@ -61,6 +62,7 @@
 			// 
 			// groupBox2
 			// 
+			this.groupBox2.Controls.Add(this.label1);
 			this.groupBox2.Controls.Add(this.FileListView);
 			this.groupBox2.Location = new System.Drawing.Point(308, 12);
 			this.groupBox2.Name = "groupBox2";
@@ -100,6 +102,15 @@
 			this.下载ToolStripMenuItem.Size = new System.Drawing.Size(108, 24);
 			this.下载ToolStripMenuItem.Text = "下载";
 			// 
+			// label1
+			// 
+			this.label1.AutoSize = true;
+			this.label1.Location = new System.Drawing.Point(58, 482);
+			this.label1.Name = "label1";
+			this.label1.Size = new System.Drawing.Size(55, 15);
+			this.label1.TabIndex = 1;
+			this.label1.Text = "label1";
+			// 
 			// FileManager
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
@@ -112,6 +123,7 @@
 			this.Load += new System.EventHandler(this.File_Manager_Load);
 			this.groupBox1.ResumeLayout(false);
 			this.groupBox2.ResumeLayout(false);
+			this.groupBox2.PerformLayout();
 			this.NodeRightMenu.ResumeLayout(false);
 			this.ResumeLayout(false);
 
@@ -126,5 +138,6 @@
 		private System.Windows.Forms.ContextMenuStrip NodeRightMenu;
 		private System.Windows.Forms.ToolStripMenuItem 上传ToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem 下载ToolStripMenuItem;
+		private System.Windows.Forms.Label label1;
 	}
 }

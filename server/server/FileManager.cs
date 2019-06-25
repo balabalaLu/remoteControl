@@ -19,15 +19,22 @@ namespace server
 		bool isListeningSocket = true;//是否持续监听客户端
 		String title = "";
 		Socket clientSocket;
+		Socket fileSocket;
+		TcpClient Client;            //用于连接被控端
+		TcpClient FileClient;  //
 		MainForm MF;
 		String localDiskList = "";
 		String FolderList = "";
 		String FileList = "";
 		TreeNode selNode;//被选中的左侧的某个treeNode
-		TcpClient Client;            //用于连接被控端
 		String clientIP;          //被控端IP
 		NetworkStream Ns;
+		NetworkStream fileNs;
+		String SelectedFileListName = "";//选中的文件夹
 		String selectedFileName = "";//选中的某一个文件
+		String selectedFilePath = "";//选中的某一个文件的路径
+		String upLoadFilePath = "";//本地选中的需要上传的文件
+		String upLoadFileName = "";
 
 		public FileManager(String Ip, Socket clientSocket, MainForm MF)
 		{
@@ -49,14 +56,19 @@ namespace server
 			try
 			{
 				Client = new TcpClient();
+				FileClient= new TcpClient();
 				Client.Connect(this.clientIP, Global.clientPort);
+				FileClient.Connect(this.clientIP, Global.remoteFilePort);
+
 				//如果连接上了
-				if (Client.Client.Connected)
+				if (Client.Client.Connected&&FileClient.Client.Connected)
 				{
 					//重定向SOCKET 得到被控端套接字句柄
 					this.clientSocket = this.Client.Client;
+					this.fileSocket = this.FileClient.Client;
 					//窗体加载时默认列举被控端电脑盘符
 					this.Ns = new NetworkStream(this.clientSocket);
+					this.fileNs = new NetworkStream(this.fileSocket);
 					//命令原型 ： $GetDir (没有参数1的情况下返回当前主机所有盘符)
 					this.Ns.Write(Encoding.Default.GetBytes("$GetDir"), 0, Encoding.Default.GetBytes("$GetDir").Length);
 					this.Ns.Flush();
@@ -70,6 +82,8 @@ namespace server
 			{
 				Thread thread = new Thread(new ThreadStart(this.listenSocket));
 				thread.Start();
+				Thread thread1 = new Thread(new ThreadStart(this.Res_File));
+				thread1.Start();
 			}
 			catch { };
 		}
@@ -197,6 +211,8 @@ namespace server
 			//原型 : $GetFile|[参数1]  (列举参数1的目录)
 			this.Ns.Write(Encoding.Default.GetBytes("$GetFile||" + e.Node.Tag), 0, Encoding.Default.GetBytes("$GetFile||" + e.Node.Tag).Length);
 			this.Ns.Flush();
+			//设置当前选中的文件夹的名称
+			this.SelectedFileListName = Convert.ToString(e.Node.Tag);
 		}
 		/// <summary>
 		/// 右键菜单操作
@@ -208,7 +224,14 @@ namespace server
 			switch (e.ClickedItem.Text)
 			{
 				case "上传":
-					//在界面展示提示
+					OpenFileDialog ofDialog = new OpenFileDialog();
+					if (ofDialog.ShowDialog(this) == DialogResult.OK)
+					{
+						this.upLoadFileName = ofDialog.SafeFileName; //文件名
+						//txtFileName.Text = fileName;      
+						this.upLoadFilePath = ofDialog.FileName;     //获取包含文件名的全路径
+						this.UpLoadSelectedFile();
+					}
 					break;
 				case "下载":
 					MessageBox.Show(e.ClickedItem.Text);
@@ -220,18 +243,22 @@ namespace server
 		/// <summary>
 		/// 右键文件上传
 		/// </summary>
-		/*public void UpLoadSelectedFile()
+		public void UpLoadSelectedFile()
 		{
-			//发送文件之前 将文件名字和长度发送过去
-			long fileLength = new FileInfo(fileFullPath).Length;
-			string totalMsg = string.Format("{0}-{1}", fileName, fileLength);
-			ClientSendMsg(totalMsg, 2);
+			//发送文件之前 将和长度发送过去
+			long fileLength = new FileInfo(this.upLoadFilePath).Length;
+			string totalMsg =string.Format("{0}-{1}", Path.Combine(selectedFilePath,upLoadFileName), fileLength);
+			//添加标识
+			byte[] sendMsg=new Byte[1];
+			sendMsg[0] = 2;
+			byte[] byteMsg = Encoding.Default.GetBytes(totalMsg);
+			sendMsg=sendMsg.Concat(byteMsg).ToArray();
 
-
+			this.fileNs.Write(sendMsg, 0, sendMsg.Length);
+			this.fileNs.Flush();
 			//发送文件
-			byte[] buffer = new byte[SendBufferSize];
-
-			using (FileStream fs = new FileStream(fileFullPath, FileMode.Open, FileAccess.Read))
+			byte[] buffer = new byte[1024];
+			using (FileStream fs = new FileStream(upLoadFilePath, FileMode.Open, FileAccess.Read))
 			{
 				int readLength = 0;
 				bool firstRead = true;
@@ -245,18 +272,16 @@ namespace server
 						byte[] firstBuffer = new byte[readLength + 1];
 						firstBuffer[0] = 1; //告诉机器该发送的字节数组为文件
 						Buffer.BlockCopy(buffer, 0, firstBuffer, 1, readLength);
-
-						socketClient.Send(firstBuffer, 0, readLength + 1, SocketFlags.None);
-
+						fileSocket.Send(firstBuffer, 0, readLength + 1, SocketFlags.None);
 						firstRead = false;
 						continue;
 					}
 					//之后发送的均为直接读取的字节流
-					socketClient.Send(buffer, 0, readLength, SocketFlags.None);
+					fileSocket.Send(buffer, 0, readLength, SocketFlags.None);
 				}
 				fs.Close();
 			}
-		}*/
+		}
 		/// <summary>
 		/// 右边的FileListView被右击的时候
 		/// </summary>
@@ -267,6 +292,75 @@ namespace server
 			if (e.Button == MouseButtons.Right)
 			{
 				this.NodeRightMenu.Show(FileListView, e.Location);//鼠标右键按下弹出菜单
+			}
+			//存储选中的文件名
+			if (this.FileListView.SelectedItems.Count > 0)
+			{
+				this.selectedFileName = this.FileListView.SelectedItems[0].Text.Trim();
+				this.selectedFilePath = Path.Combine(this.SelectedFileListName, this.selectedFileName);
+			}
+		}
+		/// <summary>
+		/// 文件下载时
+		/// </summary>
+		public void Res_File()
+		{
+			long fileLength = 0;
+			while (true)
+			{
+				int firstReceived = 0;
+				byte[] buffer = new byte[1024];
+				try
+				{
+					//获取接收的数据,并存入内存缓冲区  返回一个字节数组的长度
+					if (fileSocket != null)
+						firstReceived = fileSocket.Receive(buffer);
+					if (firstReceived > 0) //接受到的长度大于0 说明有信息或文件传来
+					{
+						if (buffer[0] == 2)//2为文件名字和长度
+						{
+							string fileNameWithLength = Encoding.UTF8.GetString(buffer, 1, firstReceived - 1);
+							savePath = fileNameWithLength.Split('-').First(); //文件保存的路径
+							fileLength = Convert.ToInt64(fileNameWithLength.Split('-').Last());//文件长度
+						}
+						if (buffer[0] == 1)//1为文件
+						{
+
+							int received = 0;
+							long receivedTotalFilelength = 0;
+							bool firstWrite = true;
+							using (FileStream fs = new FileStream(savePath, FileMode.Create, FileAccess.Write))
+							{
+								while (receivedTotalFilelength < fileLength) //之后收到的文件字节数组
+								{
+									if (firstWrite)
+									{
+										fs.Write(buffer, 1, firstReceived - 1); //第一次收到的文件字节数组 需要移除标识符1 后写入文件
+										fs.Flush();
+										receivedTotalFilelength += firstReceived - 1;
+										firstWrite = false;
+										continue;
+									}
+									received = Lis_fileSocket.Receive(buffer); //之后每次收到的文件字节数组 可以直接写入文件
+									fs.Write(buffer, 0, received);
+									fs.Flush();
+									receivedTotalFilelength += received;
+								}
+								fs.Close();
+							}
+
+							HintFilename = savePath.Substring(savePath.LastIndexOf("\\") + 1); //文件名 不带路径
+							HintFilepath = savePath.Substring(0, savePath.LastIndexOf("\\")); //文件路径 不带文件名
+							this.BeginInvoke(new myUI(this.MsgHint));
+						}
+
+					}
+				}
+				catch (Exception ex)
+				{
+					this.listView1.Items.Add("系统异常消息:" + ex.Message);
+					break;
+				}
 			}
 		}
 	}

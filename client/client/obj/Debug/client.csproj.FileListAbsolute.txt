@@ -8,3 +8,13 @@ C:\Users\asus\Desktop\C#\client\client\bin\Debug\client.exe
 C:\Users\asus\Desktop\C#\client\client\bin\Debug\client.pdb
 C:\Users\asus\Desktop\C#\client\client\obj\Debug\client.exe
 C:\Users\asus\Desktop\C#\client\client\obj\Debug\client.pdb
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.csprojResolveAssemblyReference.cache
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.MainForm.resources
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.Properties.Resources.resources
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.csproj.GenerateResource.cache
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.csproj.CoreCompileInputs.cache
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.exe
+D:\A-大学\大三下\软件安全\远控软件\client\client\obj\Debug\client.pdb
+D:\A-大学\大三下\软件安全\远控软件\client\client\bin\Debug\client.exe.config
+D:\A-大学\大三下\软件安全\远控软件\client\client\bin\Debug\client.exe
+D:\A-大学\大三下\软件安全\远控软件\client\client\bin\Debug\client.pdb
