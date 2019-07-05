@@ -21,7 +21,8 @@ namespace server
 		Socket clientSocket;
 		Socket fileSocket;
 		TcpClient Client;            //用于连接被控端
-		TcpClient FileClient;  //
+		TcpClient FileClient;
+		TcpListener LisFile;
 		MainForm MF;
 		String localDiskList = "";
 		String FolderList = "";
@@ -59,19 +60,15 @@ namespace server
 			try
 			{
 				Client = new TcpClient();
-				FileClient= new TcpClient();
 				Client.Connect(this.clientIP, Global.clientPort);
-				FileClient.Connect(this.clientIP, Global.remoteFilePort);
 
 				//如果连接上了
-				if (Client.Client.Connected&&FileClient.Client.Connected)
+				if (Client.Client.Connected)
 				{
 					//重定向SOCKET 得到被控端套接字句柄
 					this.clientSocket = this.Client.Client;
-					this.fileSocket = this.FileClient.Client;
 					//窗体加载时默认列举被控端电脑盘符
 					this.Ns = new NetworkStream(this.clientSocket);
-					this.fileNs = new NetworkStream(this.fileSocket);
 					//命令原型 ： $GetDir (没有参数1的情况下返回当前主机所有盘符)
 					this.Ns.Write(Encoding.Default.GetBytes("$GetDir"), 0, Encoding.Default.GetBytes("$GetDir").Length);
 					this.Ns.Flush();
@@ -85,7 +82,7 @@ namespace server
 			{
 				Thread thread = new Thread(new ThreadStart(this.listenSocket));
 				thread.Start();
-				Thread thread1 = new Thread(new ThreadStart(this.Res_File));
+				Thread thread1 = new Thread(new ThreadStart(this.listenFileSocket));
 				thread1.Start();
 			}
 			catch { };
@@ -109,6 +106,27 @@ namespace server
 					}
 					catch { }
 				}
+			}
+		}
+		/// <summary>
+		/// 监听本地7777
+		/// </summary>
+		public void listenFileSocket()
+		{
+			IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
+			LisFile = new TcpListener(ipAddress, Global.FilePort);
+			while (true)
+			{
+				try
+				{
+					LisFile.Start();//开始监听
+					this.fileSocket = LisFile.AcceptSocket();//客户端请求则创建套接字
+					this.fileNs = new NetworkStream(this.fileSocket);
+					//创建线程
+					Thread thread = new Thread(new ThreadStart(this.Res_File));
+					thread.Start();
+				}
+				catch { }
 			}
 		}
 		/// <summary>
@@ -261,7 +279,6 @@ namespace server
 			sendMsg[0] = 2;
 			byte[] byteMsg = Encoding.Default.GetBytes(totalMsg);
 			sendMsg=sendMsg.Concat(byteMsg).ToArray();
-
 			this.fileNs.Write(sendMsg, 0, sendMsg.Length);
 			this.fileNs.Flush();
 			//发送文件
@@ -328,6 +345,7 @@ namespace server
 						if (buffer[0] == 2)//2为文件名字和长度
 						{
 							string revFileLength = Encoding.UTF8.GetString(buffer, 1, firstReceived - 1);
+							fileLength = Convert.ToInt64(revFileLength);
 						}
 						if (buffer[0] == 1)//1为文件
 						{
@@ -335,7 +353,7 @@ namespace server
 							int received = 0;
 							long receivedTotalFilelength = 0;
 							bool firstWrite = true;
-							using (FileStream fs = new FileStream(savePath, FileMode.Create, FileAccess.Write))
+							using (FileStream fs = new FileStream(Path.Combine(savePath,this.selectedFileName), FileMode.Create, FileAccess.Write))
 							{
 								while (receivedTotalFilelength < fileLength) //之后收到的文件字节数组
 								{
@@ -355,8 +373,8 @@ namespace server
 								fs.Close();
 							}
 
-							HintFilename = savePath.Substring(savePath.LastIndexOf("\\") + 1); //文件名 不带路径
-							HintFilepath = savePath.Substring(0, savePath.LastIndexOf("\\")); //文件路径 不带文件名
+							HintFilename = this.selectedFileName; //文件名 不带路径
+							HintFilepath = savePath; //文件路径 不带文件名
 							
 						}
 

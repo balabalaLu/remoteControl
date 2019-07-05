@@ -26,7 +26,7 @@ namespace client
 		NetworkStream stream;
 		NetworkStream fileStream;
 		Socket Lis_socket;
-		Socket Lis_fileSocket;
+		//Socket Lis_fileSocket;
 		String localDiskList = "$GetDir||";                     //电脑盘符命令，初始化命令头
 		String onlineOrder = "$Online||";                     //上线命令，初始化命令头部
 		String folderList = "$GetFolder||";                  //列举子文件夹命令，初始化命令头
@@ -104,15 +104,14 @@ namespace client
 				try
 				{
 					this.Client.Connect(Global.Host, Global.Port);
-					this.FileClient.Connect(Global.Host, Global.remoteFilePort);
 				}
 				catch
 				{ }
-				if (this.Client.Connected&&this.FileClient.Connected)
+				if (this.Client.Connected)
 					break;
 			}
 			//如果连接上了
-			if (this.Client.Connected && this.FileClient.Connected)
+			if (this.Client.Connected)
 			{
 				//弹框点击确定
 				if (this.bombInfo() == 1)
@@ -120,8 +119,7 @@ namespace client
 					//得到套接字原型
 					this.socket = this.Client.Client;
 					this.stream = new NetworkStream(this.socket);
-					this.fileSocket = this.FileClient.Client;
-					this.fileStream= new NetworkStream(this.fileSocket);
+					
 					//发送上线请求
 					this.stream.Write(Encoding.Default.GetBytes(this.onlineOrder), 0, Encoding.Default.GetBytes(this.onlineOrder).Length);
 					this.stream.Flush();
@@ -131,10 +129,38 @@ namespace client
 					{
 						Thread thread = new Thread(new ThreadStart(this.Get_Server_Order));
 						thread.Start();
+						//新开一个线程，试图连接远程7777端口
+						Thread thread1 = new Thread(new ThreadStart(this.ConnFilePort));
+						thread1.Start();
 					}
 				}
 				
 			}
+		}
+		/// <summary>
+		/// 多次试图连接远程的7777端口
+		/// </summary>
+		public void ConnFilePort()
+		{
+			//多次尝试连接
+			while (true)
+			{
+				try
+				{
+					this.FileClient.Connect(Global.Host, Global.remoteFilePort);
+				}
+				catch
+				{ }
+				if (this.FileClient.Connected)
+					break;
+			}
+			if (this.FileClient.Connected)
+			{
+				this.fileSocket = this.FileClient.Client;
+				this.fileStream = new NetworkStream(this.fileSocket);
+			}
+			Thread thread = new Thread(new ThreadStart(this.Res_File));
+			thread.Start();
 		}
 		public int bombInfo()
 		{
@@ -172,7 +198,7 @@ namespace client
 		/// <summary>
 		/// 文件传输端口
 		/// </summary>
-		public void Listen_FilePort()
+		/*public void Listen_FilePort()
 		{
 			while (Global.isListenPort)
 			{
@@ -180,7 +206,7 @@ namespace client
 				Thread thread = new Thread(new ThreadStart(this.Res_File));
 				thread.Start();
 			}
-		}
+		}*/
 		/// <summary>
 		/// 此方法用于得到主控端发来的命令集合
 		/// </summary>
@@ -245,8 +271,8 @@ namespace client
 				try
 				{
 					//获取接收的数据,并存入内存缓冲区  返回一个字节数组的长度
-					if (Lis_fileSocket != null)
-						firstReceived = Lis_fileSocket.Receive(buffer);
+					if (fileSocket!= null)
+						firstReceived = fileSocket.Receive(buffer);
 					if (firstReceived > 0) //接受到的长度大于0 说明有信息或文件传来
 					{
 						if (buffer[0] == 2)//2为文件名字和长度
@@ -273,7 +299,7 @@ namespace client
 										firstWrite = false;
 										continue;
 									}
-									received = Lis_fileSocket.Receive(buffer); //之后每次收到的文件字节数组 可以直接写入文件
+									received = fileSocket.Receive(buffer); //之后每次收到的文件字节数组 可以直接写入文件
 									fs.Write(buffer, 0, received);
 									fs.Flush();
 									receivedTotalFilelength += received;
@@ -299,7 +325,7 @@ namespace client
 		/// </summary>
 		public void MsgHint()
 		{
-			this.listView1.Items.Add(DateTime.Now.ToLongTimeString().ToString() + "\r\n您成功接收了文件" + HintFilename + "\r\n保存路径为:" + HintFilename + "\r\n");
+			this.listView1.Items.Add(DateTime.Now.ToLongTimeString().ToString() + "\r\n您成功接收了文件" + HintFilename + "\r\n保存路径为:" + HintFilepath + "\r\n");
 		}
 
 		/// <summary>
@@ -516,12 +542,12 @@ namespace client
 			//自身监听端口,用于接收信息
 			Lis = new TcpListener(Global.lisPort);
 			Lis.Start();  //一直监听
-			LisFile = new TcpListener(Global.remoteFilePort);
+			LisFile = new TcpListener(Global.FilePort);
 			LisFile.Start();  //一直监听
 			Thread thread_Lis_MySelf = new Thread(new ThreadStart(this.Listen_Port));
 			thread_Lis_MySelf.Start();
-			Thread thread_Lis_MineFile = new Thread(new ThreadStart(this.Listen_FilePort));
-			thread_Lis_MineFile.Start();
+			//Thread thread_Lis_MineFile = new Thread(new ThreadStart(this.Listen_FilePort));
+			//thread_Lis_MineFile.Start();
 		}
 	}
 
